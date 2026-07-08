@@ -24,7 +24,7 @@ public class DataSeeder {
             pro.setMaxTokensPerDay(50000);
             pro.setMaxPreviews(100);
             pro.setUnlimitedAi(false);
-            pro.setActive(true);
+
 
             Plan business = new Plan();
             business.setName("BUSINESS");

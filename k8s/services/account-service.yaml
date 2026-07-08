@@ -59,11 +59,11 @@ spec:
                   key: APP_FRONTEND_URL
           resources:
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: 150m
+              memory: 240Mi
             limits:
               cpu: 250m
-              memory: 250Mi
+              memory: 380Mi
           readinessProbe:
             httpGet:
               path: /account/actuator/health

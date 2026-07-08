@@ -9,7 +9,7 @@ on:
 
 env:
   SERVICE_NAME: config-service
-  IMAGE_NAME: anuj55149/lovable-config-service
+  IMAGE_NAME: satyamgrao007/lovable-config-service
 
 permissions:
   id-token: write

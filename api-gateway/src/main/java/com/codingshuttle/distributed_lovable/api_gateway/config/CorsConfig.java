@@ -16,7 +16,6 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
         corsConfig.setAllowedOrigins(Arrays.asList(
-                "http://codingshuttle.in",
                 "http://lovable.snapcart.dev",
                 "http://localhost:5173"
         ));

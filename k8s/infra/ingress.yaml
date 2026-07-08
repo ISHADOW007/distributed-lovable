@@ -17,6 +17,7 @@ spec:
   tls:
     - hosts:
         - lovable.snapcart.dev
+        - api.snapcart.dev
       secretName: lovable-tls
 
   rules:
@@ -31,14 +32,14 @@ spec:
                 port:
                   number: 80
 
-    - host: www.codingshuttle.in
+    - host: api.snapcart.dev
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: lovable-frontend
+                name: api-gateway
                 port:
                   number: 80
 
@@ -50,16 +51,5 @@ spec:
             backend:
               service:
                 name: lovable-me-proxy
-                port:
-                  number: 80
-
-    - host: api.snapcart.dev
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
                 port:
                   number: 80

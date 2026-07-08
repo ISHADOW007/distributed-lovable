@@ -18,7 +18,6 @@ public class CorsConfig {
         corsConfig.setAllowedOrigins(Arrays.asList(
                 "http://codingshuttle.in",
                 "http://lovable.snapcart.dev",
-                "http://www.codingshuttle.in",
                 "http://localhost:5173"
         ));
         corsConfig.setMaxAge(3600L);

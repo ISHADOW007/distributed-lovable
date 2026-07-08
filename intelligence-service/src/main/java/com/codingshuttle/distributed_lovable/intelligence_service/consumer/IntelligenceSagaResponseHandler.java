@@ -19,7 +19,7 @@ public class IntelligenceSagaResponseHandler {
     @Transactional
     @KafkaListener(topics = "file-store-responses", groupId = "intelligence-group")
     public void handleSagaResponse(FileStoreResponseEvent response) {
-
+        //hi
         chatEventRepository.findBySagaId(response.sagaId()).ifPresent(event -> {
 
             if (!ChatEventStatus.PENDING.equals(event.getStatus())) { //Idempotency

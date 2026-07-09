@@ -70,7 +70,7 @@ spec:
               memory: 250Mi
             limits:
               cpu: 100m
-              memory: 400Mi
+              memory: 350Mi
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data

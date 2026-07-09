@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: satyamgrao007/lovable-api-gateway:latest
+          image: satyamgrao007/lovable-api-gateway:36a855f4471a41c0d4f4790deaeee35b6a9797f5
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -39,7 +39,7 @@ spec:
                   key: JWT_SECRET
           resources:
             requests:
-              cpu: 100m
+              cpu: 80m
               memory: 200Mi
             limits:
               cpu: 250m

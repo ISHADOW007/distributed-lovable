@@ -49,7 +49,7 @@ spec:
                   key: JWT_SECRET
           resources:
             requests:
-              cpu: 100m
+              cpu: 80
               memory: 250Mi
             limits:
               cpu: 100m

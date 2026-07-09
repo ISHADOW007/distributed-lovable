@@ -40,7 +40,7 @@ spec:
               memory: 300Mi
             limits:
               cpu: 50m
-              memory: 400Mi
+              memory: 350Mi
           volumeMounts:
             - name: minio-data
               mountPath: /data

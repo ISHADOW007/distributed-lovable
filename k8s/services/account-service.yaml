@@ -59,7 +59,7 @@ spec:
                   key: APP_FRONTEND_URL
           resources:
             requests:
-              cpu: 150m
+              cpu: 100m
               memory: 240Mi
             limits:
               cpu: 250m

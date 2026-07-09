@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class IntelligenceSagaResponseHandler {
 
     private final ChatEventRepository chatEventRepository;
-
+    //
     @Transactional
     @KafkaListener(topics = "file-store-responses", groupId = "intelligence-group")
     public void handleSagaResponse(FileStoreResponseEvent response) {

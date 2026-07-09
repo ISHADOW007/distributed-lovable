@@ -59,9 +59,9 @@ spec:
               path: /intelligence/actuator/health
               port: 9030
             initialDelaySeconds: 90
-            periodSeconds: 15
+            periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 90
           startupProbe:
             httpGet:
               path: /intelligence/actuator/health

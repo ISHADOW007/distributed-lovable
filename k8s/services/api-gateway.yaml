@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: satyamgrao007/lovable-api-gateway:36a855f4471a41c0d4f4790deaeee35b6a9797f5
+          image: satyamgrao007/lovable-api-gateway:a36082e0cfa695ae4cb7e16a479c794c297d0463
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

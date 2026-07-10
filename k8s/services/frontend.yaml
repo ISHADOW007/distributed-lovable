@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: lovable-frontend
-          image: satyamgrao007/lovable-frontend:v9
+          image: satyamgrao007/lovable-frontend:v10
           imagePullPolicy: Always
           ports:
             - containerPort: 80

@@ -44,28 +44,6 @@ pipeline {
 
 
 
-
-        stage('Verify Environment') {
-
-            steps {
-
-                sh '''
-                    echo "========== Java =========="
-                    java -version
-
-                    echo "========== Maven =========="
-                    ./account-service/mvnw -version
-
-                    echo "========== Git =========="
-                    git --version
-                '''
-
-            }
-        }
-
-
-
-
         stage('Prepare Maven Wrapper') {
 
             steps {
@@ -80,6 +58,32 @@ pipeline {
 
 
 
+        stage('Verify Environment') {
+
+            steps {
+
+                sh '''
+
+                    echo "========== Java =========="
+                    java -version
+
+
+                    echo "========== Maven =========="
+                    ./account-service/mvnw -version
+
+
+                    echo "========== Git =========="
+                    git --version
+
+
+                    echo "========== Docker =========="
+                    docker --version
+                    docker ps
+
+                '''
+            }
+        }
+
 
 
         stage('Build Common Library') {
@@ -89,15 +93,13 @@ pipeline {
                 dir('common-lib') {
 
                     sh '''
+
                         ./mvnw clean install -DskipTests
+
                     '''
-
                 }
-
             }
         }
-
-
 
 
 
@@ -108,15 +110,13 @@ pipeline {
                 dir('account-service') {
 
                     sh '''
+
                         ./mvnw clean package -DskipTests
+
                     '''
-
                 }
-
             }
         }
-
-
 
 
 
@@ -125,18 +125,12 @@ pipeline {
             steps {
 
                 archiveArtifacts(
-
                     artifacts: 'account-service/target/*.jar',
-
                     fingerprint: true
-
                 )
 
             }
         }
-
-
-
 
 
 
@@ -145,64 +139,55 @@ pipeline {
             steps {
 
 
-                dir('account-service') {
+                withCredentials([
+
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+
+                ]) {
 
 
-                    withCredentials([
-
-                        usernamePassword(
-
-                            credentialsId: 'dockerhub-creds',
-
-                            usernameVariable: 'DOCKER_USERNAME',
-
-                            passwordVariable: 'DOCKER_PASSWORD'
-
-                        )
-
-                    ]) {
+                    dir('account-service') {
 
 
-                        sh """
+                        sh '''
 
-                            ./mvnw compile jib:build \\
+                        ./mvnw compile jib:build \
+                        -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER} \
+                        -Djib.to.tags=latest \
+                        -Djib.to.auth.username=$DOCKER_USERNAME \
+                        -Djib.to.auth.password=$DOCKER_PASSWORD
 
-                            -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER} \\
 
-                            -Djib.to.tags=latest \\
-
-                            -Djib.to.auth.username=\$DOCKER_USERNAME \\
-
-                            -Djib.to.auth.password=\$DOCKER_PASSWORD
-
-                        """
+                        '''
 
                     }
 
                 }
 
             }
+
         }
 
 
 
-
-
-
         /*
-        stage('Deploy to Kubernetes') {
+        stage('Deploy Kubernetes') {
 
             steps {
 
                 sh """
 
-                    kubectl set image deployment/${SERVICE_NAME} \\
-                    ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \\
-                    -n ${NAMESPACE}
+                kubectl set image deployment/${SERVICE_NAME} \
+                ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
+                -n ${NAMESPACE}
 
 
-                    kubectl rollout status deployment/${SERVICE_NAME} \\
-                    -n ${NAMESPACE}
+                kubectl rollout status deployment/${SERVICE_NAME} \
+                -n ${NAMESPACE}
 
                 """
 
@@ -211,9 +196,7 @@ pipeline {
         */
 
 
-
     }
-
 
 
 
@@ -223,11 +206,14 @@ pipeline {
         success {
 
             echo """
+
             ======================================
-            BUILD SUCCESSFUL
-            IMAGE:
+                 BUILD SUCCESSFUL
+            ======================================
+
+            Image:
             ${IMAGE_NAME}:${BUILD_NUMBER}
-            ======================================
+
             """
 
         }
@@ -237,9 +223,11 @@ pipeline {
         failure {
 
             echo """
+
             ======================================
-            BUILD FAILED
+                 BUILD FAILED
             ======================================
+
             """
 
         }

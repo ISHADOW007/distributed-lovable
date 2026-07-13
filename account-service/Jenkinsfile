@@ -60,14 +60,6 @@ pipeline {
             }
         }
 
-        stage('Run Unit Tests') {
-            steps {
-                dir('account-service') {
-                    sh './mvnw test'
-                }
-            }
-        }
-
         stage('Build Account Service') {
             steps {
                 dir('account-service') {

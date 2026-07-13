@@ -11,9 +11,10 @@ pipeline {
     }
 
     environment {
-        SERVICE_NAME = 'account-service'
-        IMAGE_NAME = 'satyamgrao007/lovable-account-service'
-        NAMESPACE = 'lovable-core'
+        SERVICE_NAME = "account-service"
+        IMAGE_NAME = "satyamgrao007/lovable-account-service"
+        NAMESPACE = "lovable-core"
+        MAVEN_OPTS = "-DskipTests"
     }
 
     stages {
@@ -60,21 +61,32 @@ pipeline {
             }
         }
 
+        stage('Run Unit Tests') {
+            steps {
+                dir('account-service') {
+                    sh './mvnw test'
+                }
+            }
+        }
+
         stage('Build Account Service') {
             steps {
                 dir('account-service') {
-                    sh './mvnw clean package -DskipTests'
+                    sh "./mvnw clean package ${MAVEN_OPTS}"
                 }
             }
         }
 
         stage('Archive Artifact') {
             steps {
-                archiveArtifacts artifacts: 'account-service/target/*.jar', fingerprint: true
+                archiveArtifacts(
+                    artifacts: 'account-service/target/*.jar',
+                    fingerprint: true
+                )
             }
         }
 
-        stage('Build & Push Docker Image (Jib)') {
+        stage('Build & Push Docker Image') {
             steps {
 
                 withCredentials([
@@ -88,31 +100,27 @@ pipeline {
                     dir('account-service') {
 
                         sh """
-                        ./mvnw compile jib:build \
-                            -Djib.to.image=docker.io/${IMAGE_NAME}:${BUILD_NUMBER} \
-                            -Djib.to.tags=latest \
-                            -Djib.to.auth.username=${DOCKER_USERNAME} \
-                            -Djib.to.auth.password=${DOCKER_PASSWORD}
+                            ./mvnw jib:build \
+                              -Djib.to.image=docker.io/${IMAGE_NAME}:${BUILD_NUMBER} \
+                              -Djib.to.tags=latest \
+                              -Djib.to.auth.username=${DOCKER_USERNAME} \
+                              -Djib.to.auth.password=${DOCKER_PASSWORD}
                         """
                     }
                 }
             }
         }
 
-        // Uncomment after kubectl is configured
-
         /*
         stage('Deploy to Kubernetes') {
-
             steps {
-
                 sh """
-                kubectl set image deployment/${SERVICE_NAME} \
-                    ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
-                    -n ${NAMESPACE}
+                    kubectl set image deployment/${SERVICE_NAME} \
+                        ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
+                        -n ${NAMESPACE}
 
-                kubectl rollout status deployment/${SERVICE_NAME} \
-                    -n ${NAMESPACE}
+                    kubectl rollout status deployment/${SERVICE_NAME} \
+                        -n ${NAMESPACE}
                 """
             }
         }

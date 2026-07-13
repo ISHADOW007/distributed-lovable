@@ -2,8 +2,11 @@ pipeline {
 
     agent any
 
+
     options {
+
         timestamps()
+
         disableConcurrentBuilds()
 
         buildDiscarder(
@@ -22,7 +25,9 @@ pipeline {
         IMAGE_NAME = "satyamgrao007/lovable-account-service"
 
         NAMESPACE = "lovable-core"
+
     }
+
 
 
     stages {
@@ -39,34 +44,22 @@ pipeline {
 
 
 
+
         stage('Verify Environment') {
 
             steps {
 
                 sh '''
-                    echo "========== Workspace =========="
-
-                    pwd
-
-                    ls -la
-
-
                     echo "========== Java =========="
-
                     java -version
 
+                    echo "========== Maven =========="
+                    ./account-service/mvnw -version
 
                     echo "========== Git =========="
-
                     git --version
-
-
-                    echo "========== Docker =========="
-
-                    docker --version
-
-                    docker ps
                 '''
+
             }
         }
 
@@ -79,9 +72,9 @@ pipeline {
 
                 sh '''
                     chmod +x common-lib/mvnw
-
                     chmod +x account-service/mvnw
                 '''
+
             }
         }
 
@@ -98,28 +91,8 @@ pipeline {
                     sh '''
                         ./mvnw clean install -DskipTests
                     '''
-                }
-            }
-        }
-
-
-
-
-
-        stage('Run Unit Tests') {
-
-            when {
-
-                expression {
-
-                    false
 
                 }
-            }
-
-            steps {
-
-                echo "Skipping tests in CI"
 
             }
         }
@@ -137,10 +110,11 @@ pipeline {
                     sh '''
                         ./mvnw clean package -DskipTests
                     '''
+
                 }
+
             }
         }
-
 
 
 
@@ -157,6 +131,7 @@ pipeline {
                     fingerprint: true
 
                 )
+
             }
         }
 
@@ -165,8 +140,7 @@ pipeline {
 
 
 
-
-        stage('Build Docker Image') {
+        stage('Build and Push Docker Image using Jib') {
 
             steps {
 
@@ -174,66 +148,39 @@ pipeline {
                 dir('account-service') {
 
 
-                    sh """
+                    withCredentials([
 
-                        docker build \\
-                            -t ${IMAGE_NAME}:${BUILD_NUMBER} \\
-                            -t ${IMAGE_NAME}:latest .
+                        usernamePassword(
 
-                    """
-                }
-            }
-        }
+                            credentialsId: 'dockerhub-creds',
 
+                            usernameVariable: 'DOCKER_USERNAME',
 
+                            passwordVariable: 'DOCKER_PASSWORD'
 
+                        )
 
-
+                    ]) {
 
 
-        stage('Push Docker Image') {
+                        sh """
 
+                            ./mvnw compile jib:build \\
 
-            steps {
+                            -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER} \\
 
+                            -Djib.to.tags=latest \\
 
-                withCredentials([
+                            -Djib.to.auth.username=\$DOCKER_USERNAME \\
 
-                    usernamePassword(
+                            -Djib.to.auth.password=\$DOCKER_PASSWORD
 
-                        credentialsId: 'dockerhub-creds',
+                        """
 
-                        usernameVariable: 'DOCKER_USERNAME',
-
-                        passwordVariable: 'DOCKER_PASSWORD'
-
-                    )
-
-                ]) {
-
-
-
-                    sh """
-
-                        echo \$DOCKER_PASSWORD | docker login \\
-                            -u \$DOCKER_USERNAME \\
-                            --password-stdin
-
-
-
-                        docker push ${IMAGE_NAME}:${BUILD_NUMBER}
-
-
-
-                        docker push ${IMAGE_NAME}:latest
-
-
-
-                        docker logout
-
-                    """
+                    }
 
                 }
+
             }
         }
 
@@ -247,7 +194,6 @@ pipeline {
 
             steps {
 
-
                 sh """
 
                     kubectl set image deployment/${SERVICE_NAME} \\
@@ -255,11 +201,11 @@ pipeline {
                     -n ${NAMESPACE}
 
 
-
                     kubectl rollout status deployment/${SERVICE_NAME} \\
                     -n ${NAMESPACE}
 
                 """
+
             }
         }
         */
@@ -277,29 +223,26 @@ pipeline {
         success {
 
             echo """
-
             ======================================
             BUILD SUCCESSFUL
-            IMAGE: ${IMAGE_NAME}:${BUILD_NUMBER}
+            IMAGE:
+            ${IMAGE_NAME}:${BUILD_NUMBER}
             ======================================
-
             """
-        }
 
+        }
 
 
 
         failure {
 
             echo """
-
             ======================================
             BUILD FAILED
             ======================================
-
             """
-        }
 
+        }
 
 
 

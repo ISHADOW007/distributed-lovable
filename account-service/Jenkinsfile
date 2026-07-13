@@ -29,7 +29,6 @@ pipeline {
     }
 
 
-
     stages {
 
 
@@ -81,6 +80,7 @@ pipeline {
                     docker ps
 
                 '''
+
             }
         }
 
@@ -97,44 +97,17 @@ pipeline {
                         ./mvnw clean install -DskipTests
 
                     '''
+
                 }
+
             }
+
         }
 
 
 
-        stage('Build Account Service') {
 
-            steps {
-
-                dir('account-service') {
-
-                    sh '''
-
-                        ./mvnw clean package -DskipTests
-
-                    '''
-                }
-            }
-        }
-
-
-
-        stage('Archive Artifact') {
-
-            steps {
-
-                archiveArtifacts(
-                    artifacts: 'account-service/target/*.jar',
-                    fingerprint: true
-                )
-
-            }
-        }
-
-
-
-        stage('Build and Push Docker Image using Jib') {
+        stage('Build and Push Image using Jib') {
 
             steps {
 
@@ -155,12 +128,17 @@ pipeline {
 
                         sh '''
 
+                        echo "Building Docker image with Jib"
+
+
                         ./mvnw compile jib:build \
                         -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER} \
                         -Djib.to.tags=latest \
                         -Djib.to.auth.username=$DOCKER_USERNAME \
                         -Djib.to.auth.password=$DOCKER_PASSWORD
 
+
+                        echo "Image pushed successfully"
 
                         '''
 
@@ -174,12 +152,14 @@ pipeline {
 
 
 
-        /*
         stage('Deploy Kubernetes') {
 
             steps {
 
                 sh """
+
+                echo "Deploying ${SERVICE_NAME}"
+
 
                 kubectl set image deployment/${SERVICE_NAME} \
                 ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
@@ -189,11 +169,13 @@ pipeline {
                 kubectl rollout status deployment/${SERVICE_NAME} \
                 -n ${NAMESPACE}
 
+
                 """
 
             }
+
         }
-        */
+
 
 
     }
@@ -211,8 +193,13 @@ pipeline {
                  BUILD SUCCESSFUL
             ======================================
 
+            Service:
+            ${SERVICE_NAME}
+
+
             Image:
             ${IMAGE_NAME}:${BUILD_NUMBER}
+
 
             """
 
@@ -227,6 +214,7 @@ pipeline {
             ======================================
                  BUILD FAILED
             ======================================
+
 
             """
 

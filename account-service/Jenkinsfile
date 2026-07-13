@@ -40,6 +40,7 @@ pipeline {
 
                     echo "========== Docker =========="
                     docker --version
+                    docker ps
                 '''
             }
         }
@@ -61,14 +62,14 @@ pipeline {
             }
         }
 
-       stage('Run Unit Tests') {
-           when {
-               expression { false }
-           }
-           steps {
-               echo "Skipping tests in CI"
-           }
-       }
+        stage('Run Unit Tests') {
+            when {
+                expression { false }
+            }
+            steps {
+                echo "Skipping tests in CI"
+            }
+        }
 
         stage('Build Account Service') {
             steps {
@@ -87,9 +88,20 @@ pipeline {
             }
         }
 
-        stage('Build & Push Docker Image') {
+        stage('Build Docker Image') {
             steps {
+                dir('account-service') {
+                    sh """
+                        docker build \
+                          -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                          -t ${IMAGE_NAME}:latest .
+                    """
+                }
+            }
+        }
 
+        stage('Push Docker Image') {
+            steps {
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockerhub-creds',
@@ -98,16 +110,14 @@ pipeline {
                     )
                 ]) {
 
-                    dir('account-service') {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-                        sh """
-                            ./mvnw jib:build \
-                              -Djib.to.image=docker.io/${IMAGE_NAME}:${BUILD_NUMBER} \
-                              -Djib.to.tags=latest \
-                              -Djib.to.auth.username=${DOCKER_USERNAME} \
-                              -Djib.to.auth.password=${DOCKER_PASSWORD}
-                        """
-                    }
+                        docker push '"${IMAGE_NAME}"':'"${BUILD_NUMBER}"'
+                        docker push '"${IMAGE_NAME}"':latest
+
+                        docker logout
+                    '''
                 }
             }
         }
@@ -144,7 +154,7 @@ pipeline {
         }
 
         always {
-            cleanWs()
+            deleteDir()
         }
     }
 }

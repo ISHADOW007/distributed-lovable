@@ -1,160 +1,314 @@
 pipeline {
+
     agent any
 
     options {
         timestamps()
         disableConcurrentBuilds()
-        buildDiscarder(logRotator(
-            numToKeepStr: '20',
-            artifactNumToKeepStr: '10'
-        ))
+
+        buildDiscarder(
+            logRotator(
+                numToKeepStr: '20',
+                artifactNumToKeepStr: '10'
+            )
+        )
     }
 
+
     environment {
+
         SERVICE_NAME = "account-service"
+
         IMAGE_NAME = "satyamgrao007/lovable-account-service"
+
         NAMESPACE = "lovable-core"
-        MAVEN_OPTS = "-DskipTests"
     }
+
 
     stages {
 
+
         stage('Checkout Source') {
+
             steps {
+
                 checkout scm
+
             }
         }
 
+
+
         stage('Verify Environment') {
+
             steps {
+
                 sh '''
                     echo "========== Workspace =========="
+
                     pwd
+
                     ls -la
 
+
                     echo "========== Java =========="
+
                     java -version
 
+
                     echo "========== Git =========="
+
                     git --version
 
+
                     echo "========== Docker =========="
+
                     docker --version
+
                     docker ps
                 '''
             }
         }
 
+
+
+
         stage('Prepare Maven Wrapper') {
+
             steps {
+
                 sh '''
                     chmod +x common-lib/mvnw
+
                     chmod +x account-service/mvnw
                 '''
             }
         }
 
+
+
+
+
         stage('Build Common Library') {
+
             steps {
+
                 dir('common-lib') {
-                    sh './mvnw clean install -DskipTests'
-                }
-            }
-        }
-
-        stage('Run Unit Tests') {
-            when {
-                expression { false }
-            }
-            steps {
-                echo "Skipping tests in CI"
-            }
-        }
-
-        stage('Build Account Service') {
-            steps {
-                dir('account-service') {
-                    sh "./mvnw clean package ${MAVEN_OPTS}"
-                }
-            }
-        }
-
-        stage('Archive Artifact') {
-            steps {
-                archiveArtifacts(
-                    artifacts: 'account-service/target/*.jar',
-                    fingerprint: true
-                )
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                dir('account-service') {
-                    sh """
-                        docker build \
-                          -t ${IMAGE_NAME}:${BUILD_NUMBER} \
-                          -t ${IMAGE_NAME}:latest .
-                    """
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
 
                     sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-                        docker push '"${IMAGE_NAME}"':'"${BUILD_NUMBER}"'
-                        docker push '"${IMAGE_NAME}"':latest
-
-                        docker logout
+                        ./mvnw clean install -DskipTests
                     '''
                 }
             }
         }
 
+
+
+
+
+        stage('Run Unit Tests') {
+
+            when {
+
+                expression {
+
+                    false
+
+                }
+            }
+
+            steps {
+
+                echo "Skipping tests in CI"
+
+            }
+        }
+
+
+
+
+
+        stage('Build Account Service') {
+
+            steps {
+
+                dir('account-service') {
+
+                    sh '''
+                        ./mvnw clean package -DskipTests
+                    '''
+                }
+            }
+        }
+
+
+
+
+
+
+        stage('Archive Artifact') {
+
+            steps {
+
+                archiveArtifacts(
+
+                    artifacts: 'account-service/target/*.jar',
+
+                    fingerprint: true
+
+                )
+            }
+        }
+
+
+
+
+
+
+
+        stage('Build Docker Image') {
+
+            steps {
+
+
+                dir('account-service') {
+
+
+                    sh """
+
+                        docker build \\
+                            -t ${IMAGE_NAME}:${BUILD_NUMBER} \\
+                            -t ${IMAGE_NAME}:latest .
+
+                    """
+                }
+            }
+        }
+
+
+
+
+
+
+
+        stage('Push Docker Image') {
+
+
+            steps {
+
+
+                withCredentials([
+
+                    usernamePassword(
+
+                        credentialsId: 'dockerhub-creds',
+
+                        usernameVariable: 'DOCKER_USERNAME',
+
+                        passwordVariable: 'DOCKER_PASSWORD'
+
+                    )
+
+                ]) {
+
+
+
+                    sh """
+
+                        echo \$DOCKER_PASSWORD | docker login \\
+                            -u \$DOCKER_USERNAME \\
+                            --password-stdin
+
+
+
+                        docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+
+
+
+                        docker push ${IMAGE_NAME}:latest
+
+
+
+                        docker logout
+
+                    """
+
+                }
+            }
+        }
+
+
+
+
+
+
         /*
         stage('Deploy to Kubernetes') {
-            steps {
-                sh """
-                    kubectl set image deployment/${SERVICE_NAME} \
-                        ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
-                        -n ${NAMESPACE}
 
-                    kubectl rollout status deployment/${SERVICE_NAME} \
-                        -n ${NAMESPACE}
+            steps {
+
+
+                sh """
+
+                    kubectl set image deployment/${SERVICE_NAME} \\
+                    ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \\
+                    -n ${NAMESPACE}
+
+
+
+                    kubectl rollout status deployment/${SERVICE_NAME} \\
+                    -n ${NAMESPACE}
+
                 """
             }
         }
         */
 
+
+
     }
+
+
+
 
     post {
 
+
         success {
-            echo "======================================"
-            echo "BUILD SUCCESSFUL"
-            echo "======================================"
+
+            echo """
+
+            ======================================
+            BUILD SUCCESSFUL
+            IMAGE: ${IMAGE_NAME}:${BUILD_NUMBER}
+            ======================================
+
+            """
         }
+
+
+
 
         failure {
-            echo "======================================"
-            echo "BUILD FAILED"
-            echo "======================================"
+
+            echo """
+
+            ======================================
+            BUILD FAILED
+            ======================================
+
+            """
         }
 
+
+
+
         always {
+
             deleteDir()
+
         }
+
     }
+
 }

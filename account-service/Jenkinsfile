@@ -29,19 +29,6 @@ pipeline {
     }
 
 
-    stages {
-
-
-        stage('Checkout Source') {
-
-            steps {
-
-                checkout scm
-
-            }
-        }
-
-
 
         stage('Prepare Maven Wrapper') {
 

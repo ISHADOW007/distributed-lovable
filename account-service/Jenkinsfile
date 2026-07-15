@@ -72,6 +72,13 @@ pipeline {
                     echo ""
                     echo "========== DOCKER =========="
                     docker --version
+
+                    echo ""
+                    echo "========== TRIVY =========="
+                    trivy --version
+
+                    echo ""
+                    echo "========== DOCKER CONTAINERS =========="
                     docker ps
                 '''
             }
@@ -109,12 +116,15 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 dir('account-service') {
+
                     withSonarQubeEnv("${SONARQUBE_SERVER}") {
+
                         sh '''
                             ./mvnw sonar:sonar \
                               -Dsonar.projectKey=account-service \
                               -Dsonar.projectName=account-service
                         '''
+
                     }
                 }
             }
@@ -125,118 +135,231 @@ pipeline {
          **************************************************************/
         stage('Quality Gate') {
             steps {
+
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
+
             }
         }
 
         /**************************************************************
-         * Build & Push Docker Image using Jib
+         * Trivy Filesystem Scan
          **************************************************************/
-        stage('Build and Push Image') {
+        stage('Trivy Filesystem Scan') {
+
             steps {
 
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
+                dir('account-service') {
 
-                    dir('account-service') {
+                    sh '''
+                        echo "======================================"
+                        echo "Scanning Source Code"
+                        echo "======================================"
+
+                        trivy fs \
+                            --scanners vuln,misconfig,secret \
+                            --severity HIGH,CRITICAL \
+                            --exit-code 1 \
+                            .
+
+                        echo ""
+                        echo "Filesystem Scan Passed"
+                    '''
+
+                }
+
+            }
+
+        }
+
+                /**************************************************************
+                 * Build Docker Image (Local)
+                 **************************************************************/
+                stage('Build Docker Image') {
+
+                    steps {
+
+                        dir('account-service') {
+
+                            sh '''
+                                echo "======================================"
+                                echo "Building Docker Image"
+                                echo "======================================"
+
+                                ./mvnw compile jib:dockerBuild \
+                                  -DskipTests \
+                                  -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER}
+
+                                docker images | grep ${SERVICE_NAME}
+
+                                echo ""
+                                echo "Docker Image Built Successfully"
+                            '''
+
+                        }
+
+                    }
+
+                }
+
+                /**************************************************************
+                 * Trivy Docker Image Scan
+                 **************************************************************/
+                stage('Trivy Docker Image Scan') {
+
+                    steps {
 
                         sh '''
                             echo "======================================"
-                            echo "Building Docker Image with Jib"
+                            echo "Scanning Docker Image"
                             echo "======================================"
 
-                            ./mvnw jib:build \
-                              -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER} \
-                              -Djib.to.tags=latest \
-                              -Djib.to.auth.username=$DOCKER_USERNAME \
-                              -Djib.to.auth.password=$DOCKER_PASSWORD
+                            trivy image \
+                                --severity HIGH,CRITICAL \
+                                --exit-code 1 \
+                                ${IMAGE_NAME}:${BUILD_NUMBER}
+
+                            echo ""
+                            echo "Docker Image Scan Passed"
+                        '''
+
+                    }
+
+                }
+
+                /**************************************************************
+                 * Docker Login
+                 **************************************************************/
+                stage('Docker Login') {
+
+                    steps {
+
+                        withCredentials([
+                            usernamePassword(
+                                credentialsId: 'dockerhub-creds',
+                                usernameVariable: 'DOCKER_USERNAME',
+                                passwordVariable: 'DOCKER_PASSWORD'
+                            )
+                        ]) {
+
+                            sh '''
+                                echo "$DOCKER_PASSWORD" | docker login \
+                                    -u "$DOCKER_USERNAME" \
+                                    --password-stdin
+                            '''
+
+                        }
+
+                    }
+
+                }
+
+                /**************************************************************
+                 * Push Docker Image
+                 **************************************************************/
+                stage('Push Docker Image') {
+
+                    steps {
+
+                        sh '''
+                            echo "======================================"
+                            echo "Pushing Docker Image"
+                            echo "======================================"
+
+                            docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+
+                            docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+
+                            docker push ${IMAGE_NAME}:latest
 
                             echo ""
                             echo "Docker Image Successfully Pushed"
                         '''
 
                     }
+
                 }
+
+                /**************************************************************
+                 * Deploy to Kubernetes
+                 **************************************************************/
+
+                /*
+                stage('Deploy to Kubernetes') {
+
+                    steps {
+
+                        sh """
+
+                            kubectl set image deployment/${SERVICE_NAME} \
+                                ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
+                                -n ${NAMESPACE}
+
+                            kubectl rollout status deployment/${SERVICE_NAME} \
+                                -n ${NAMESPACE}
+
+                        """
+
+                    }
+
+                }
+                */
+
             }
-        }
 
-        /**************************************************************
-         * Deploy to Kubernetes
-         **************************************************************/
+            post {
 
-        /*
-        stage('Deploy to Kubernetes') {
+                success {
 
-            steps {
+                    echo """
 
-                sh """
+        ==========================================================
 
-                    kubectl set image deployment/${SERVICE_NAME} \
-                    ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
-                    -n ${NAMESPACE}
+                        BUILD SUCCESSFUL
 
-                    kubectl rollout status deployment/${SERVICE_NAME} \
-                    -n ${NAMESPACE}
+        ==========================================================
 
-                """
+        Service : ${SERVICE_NAME}
+
+        Image   : ${IMAGE_NAME}:${BUILD_NUMBER}
+
+        ==========================================================
+
+        """
+
+                }
+
+                failure {
+
+                    echo """
+
+        ==========================================================
+
+                         BUILD FAILED
+
+        ==========================================================
+
+        Please check the Jenkins console output.
+
+        ==========================================================
+
+        """
+
+                }
+
+                always {
+
+                    sh '''
+                        docker logout || true
+                    '''
+
+                    deleteDir()
+
+                }
 
             }
 
         }
-        */
 
-    }
 
-    post {
-
-        success {
-
-            echo """
-
-==========================================================
-
-                BUILD SUCCESSFUL
-
-==========================================================
-
-Service : ${SERVICE_NAME}
-
-Image   : ${IMAGE_NAME}:${BUILD_NUMBER}
-
-==========================================================
-
-"""
-
-        }
-
-        failure {
-
-            echo """
-
-==========================================================
-
-                 BUILD FAILED
-
-==========================================================
-
-Please check the Jenkins console output.
-
-==========================================================
-
-"""
-
-        }
-
-        always {
-            deleteDir()
-        }
-    }
-
-}

@@ -233,27 +233,59 @@ pipeline {
                 /**************************************************************
                  * Trivy Docker Image Scan
                  **************************************************************/
-                stage('Trivy Docker Image Scan') {
+//                 stage('Trivy Docker Image Scan') {
+//
+//                     steps {
+//
+//                         sh '''
+//                             echo "======================================"
+//                             echo "Scanning Docker Image"
+//                             echo "======================================"
+//
+//                             trivy image \
+//                                 --severity HIGH,CRITICAL \
+//                                 --exit-code 1 \
+//                                 ${IMAGE_NAME}:${BUILD_NUMBER}
+//
+//                             echo ""
+//                             echo "Docker Image Scan Passed"
+//                         '''
+//
+//                     }
+//
+//                 }
 
-                    steps {
+               stage('Trivy Docker Image Scan') {
 
-                        sh '''
-                            echo "======================================"
-                            echo "Scanning Docker Image"
-                            echo "======================================"
+                   steps {
 
-                            trivy image \
-                                --severity HIGH,CRITICAL \
-                                --exit-code 1 \
-                                ${IMAGE_NAME}:${BUILD_NUMBER}
+                       sh '''
+                           echo "======================================"
+                           echo "Scanning Docker Image"
+                           echo "======================================"
 
-                            echo ""
-                            echo "Docker Image Scan Passed"
-                        '''
+                           trivy image \
+                               --timeout 15m \
+                               --scanners vuln \
+                               --severity HIGH,CRITICAL \
+                               --format json \
+                               --output trivy-image-report.json \
+                               --exit-code 0 \
+                               ${IMAGE_NAME}:${BUILD_NUMBER}
 
-                    }
+                           echo ""
+                           echo "Docker Image Scan Completed"
+                       '''
 
-                }
+                   }
+
+                   post {
+                       always {
+                           archiveArtifacts artifacts: 'trivy-image-report.json'
+                       }
+                   }
+
+               }
 
                 /**************************************************************
                  * Docker Login
@@ -388,5 +420,4 @@ pipeline {
             }
 
         }
-
 

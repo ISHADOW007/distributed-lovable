@@ -16,7 +16,7 @@ public class DataSeeder {
             if (planRepository.count() > 0) {
                 return;
             }
-
+           //
             Plan pro = new Plan();
             pro.setName("PRO");
             pro.setStripePriceId("price_1ToZxU9ddI7TTPGG5l5yxmMw"); // Replace with your actual Stripe Price ID

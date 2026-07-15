@@ -2,11 +2,11 @@ pipeline {
 
     agent any
 
-
+    /*****************************************************************
+     * Pipeline Options
+     *****************************************************************/
     options {
-
         timestamps()
-
         disableConcurrentBuilds()
 
         buildDiscarder(
@@ -17,32 +17,41 @@ pipeline {
         )
     }
 
-
+    /*****************************************************************
+     * Environment Variables
+     *****************************************************************/
     environment {
 
+        // Service Name
         SERVICE_NAME = "account-service"
 
+        // DockerHub Repository
         IMAGE_NAME = "satyamgrao007/lovable-account-service"
 
+        // Kubernetes Namespace
         NAMESPACE = "lovable-core"
+
+        // Jenkins -> Manage Jenkins -> SonarQube Installations
+        SONARQUBE_SERVER = "sonarqube"
 
     }
 
-
     stages {
 
-
+        /**************************************************************
+         * Checkout Source Code
+         **************************************************************/
         stage('Checkout Source') {
 
             steps {
-
                 checkout scm
-
             }
+
         }
 
-
-
+        /**************************************************************
+         * Make Maven Wrapper Executable
+         **************************************************************/
         stage('Prepare Maven Wrapper') {
 
             steps {
@@ -53,39 +62,47 @@ pipeline {
                 '''
 
             }
+
         }
 
-
-
+        /**************************************************************
+         * Verify Build Environment
+         **************************************************************/
         stage('Verify Environment') {
 
             steps {
 
                 sh '''
 
-                    echo "========== Java =========="
+                    echo "========== JAVA =========="
                     java -version
 
+                    echo ""
 
-                    echo "========== Maven =========="
+                    echo "========== MAVEN =========="
                     ./account-service/mvnw -version
 
+                    echo ""
 
-                    echo "========== Git =========="
+                    echo "========== GIT =========="
                     git --version
 
+                    echo ""
 
-                    echo "========== Docker =========="
+                    echo "========== DOCKER =========="
                     docker --version
+
                     docker ps
 
                 '''
 
             }
+
         }
 
-
-
+        /**************************************************************
+         * Build Common Library
+         **************************************************************/
         stage('Build Common Library') {
 
             steps {
@@ -104,41 +121,43 @@ pipeline {
 
         }
 
-
-
-
-        stage('Build and Push Image using Jib') {
+        /**************************************************************
+         * Compile Account Service
+         **************************************************************/
+        stage('Build Service') {
 
             steps {
 
+                dir('account-service') {
 
-                withCredentials([
+                    sh '''
 
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
+                        ./mvnw clean verify -DskipTests
 
-                ]) {
+                    '''
 
+                }
 
-                    dir('account-service') {
+            }
 
+        }
+
+        /**************************************************************
+         * SonarQube Code Analysis
+         **************************************************************/
+        stage('SonarQube Analysis') {
+
+            steps {
+
+                dir('account-service') {
+
+                    withSonarQubeEnv("${SONARQUBE_SERVER}") {
 
                         sh '''
 
-                        echo "Building Docker image with Jib"
-
-
-                        ./mvnw compile jib:build \
-                        -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER} \
-                        -Djib.to.tags=latest \
-                        -Djib.to.auth.username=$DOCKER_USERNAME \
-                        -Djib.to.auth.password=$DOCKER_PASSWORD
-
-
-                        echo "Image pushed successfully"
+                            ./mvnw sonar:sonar \
+                            -Dsonar.projectKey=account-service \
+                            -Dsonar.projectName=account-service
 
                         '''
 
@@ -150,80 +169,145 @@ pipeline {
 
         }
 
+        /**************************************************************
+         * Wait for SonarQube Quality Gate
+         **************************************************************/
+        stage('Quality Gate') {
 
+            steps {
 
-       /* stage('Deploy Kubernetes') {
+                timeout(time: 5, unit: 'MINUTES') {
+
+                    waitForQualityGate abortPipeline: true
+
+                }
+
+            }
+
+        }
+
+        /**************************************************************
+         * Build Docker Image & Push using Jib
+         **************************************************************/
+        stage('Build and Push Image using Jib') {
+
+            steps {
+
+                withCredentials([
+
+                    usernamePassword(
+
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+
+                    )
+
+                ]) {
+
+                    dir('account-service') {
+
+                        sh '''
+
+                            echo "======================================="
+                            echo "Building Docker Image with Jib"
+                            echo "======================================="
+
+                            ./mvnw compile jib:build \
+                            -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER} \
+                            -Djib.to.tags=latest \
+                            -Djib.to.auth.username=$DOCKER_USERNAME \
+                            -Djib.to.auth.password=$DOCKER_PASSWORD
+
+                            echo ""
+                            echo "Image Successfully Pushed"
+
+                        '''
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        /**************************************************************
+         * Kubernetes Deployment
+         * Uncomment after Kubernetes is ready.
+         **************************************************************/
+
+        /*
+        stage('Deploy Kubernetes') {
 
             steps {
 
                 sh """
 
-                echo "Deploying ${SERVICE_NAME}"
+                    echo "Deploying ${SERVICE_NAME}"
 
+                    kubectl set image deployment/${SERVICE_NAME} \
+                    ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
+                    -n ${NAMESPACE}
 
-                kubectl set image deployment/${SERVICE_NAME} \
-                ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
-                -n ${NAMESPACE}
-
-
-                kubectl rollout status deployment/${SERVICE_NAME} \
-                -n ${NAMESPACE}
-
+                    kubectl rollout status deployment/${SERVICE_NAME} \
+                    -n ${NAMESPACE}
 
                 """
 
             }
 
         }
-*/
-
+        */
 
     }
 
-
-
+    /*****************************************************************
+     * Post Actions
+     *****************************************************************/
     post {
-
 
         success {
 
             echo """
 
-            ======================================
+=========================================================
+
                  BUILD SUCCESSFUL
-            ======================================
 
-            Service:
-            ${SERVICE_NAME}
+=========================================================
 
+Service  : ${SERVICE_NAME}
 
-            Image:
-            ${IMAGE_NAME}:${BUILD_NUMBER}
+Image    : ${IMAGE_NAME}:${BUILD_NUMBER}
 
+=========================================================
 
-            """
+"""
 
         }
-
-
 
         failure {
 
             echo """
 
-            ======================================
-                 BUILD FAILED
-            ======================================
+=========================================================
 
+                  BUILD FAILED
 
-            """
+=========================================================
+
+Please check the Jenkins Console Output.
+
+=========================================================
+
+"""
 
         }
 
-
-
         always {
 
+            // Clean Jenkins Workspace
             deleteDir()
 
         }

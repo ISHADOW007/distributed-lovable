@@ -210,16 +210,20 @@
                         </tags>
                     </to>
                 </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
-                    </execution>
-                </executions>
+
             </plugin>
 		</plugins>
 	</build>
 
 </project>
+
+
+
+<!--<executions>-->
+<!--<execution>-->
+<!--	<phase>package</phase>-->
+<!--	<goals>-->
+<!--		<goal>build</goal>-->
+<!--	</goals>-->
+<!--</execution>-->
+<!--</executions>-->

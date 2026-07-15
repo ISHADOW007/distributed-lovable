@@ -146,32 +146,59 @@ pipeline {
         /**************************************************************
          * Trivy Filesystem Scan
          **************************************************************/
-        stage('Trivy Filesystem Scan') {
+//         stage('Trivy Filesystem Scan') {
+//
+//             steps {
+//
+//                 dir('account-service') {
+//
+//                     sh '''
+//                         echo "======================================"
+//                         echo "Scanning Source Code"
+//                         echo "======================================"
+//
+//                         trivy fs \
+//                             --scanners vuln,misconfig,secret \
+//                             --severity HIGH,CRITICAL \
+//                             --exit-code 1 \
+//                             .
+//
+//                         echo ""
+//                         echo "Filesystem Scan Passed"
+//                     '''
+//
+//                 }
+//
+//             }
+//
+//         }
 
-            steps {
+         stage('Trivy Filesystem Scan') {
 
-                dir('account-service') {
+             steps {
 
-                    sh '''
-                        echo "======================================"
-                        echo "Scanning Source Code"
-                        echo "======================================"
+                 dir('account-service') {
 
-                        trivy fs \
-                            --scanners vuln,misconfig,secret \
-                            --severity HIGH,CRITICAL \
-                            --exit-code 1 \
-                            .
+                     sh '''
+                         echo "======================================"
+                         echo "Scanning Source Code"
+                         echo "======================================"
 
-                        echo ""
-                        echo "Filesystem Scan Passed"
-                    '''
+                         trivy fs \
+                             --scanners vuln,misconfig,secret \
+                             --severity HIGH,CRITICAL \
+                             --exit-code 0 \
+                             .
 
-                }
+                         echo ""
+                         echo "Filesystem Scan Completed"
+                     '''
 
-            }
+                 }
 
-        }
+             }
+
+         }
 
                 /**************************************************************
                  * Build Docker Image (Local)

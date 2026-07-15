@@ -1,0 +1,435 @@
+pipeline {
+
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+
+        buildDiscarder(
+            logRotator(
+                numToKeepStr: '20',
+                artifactNumToKeepStr: '10'
+            )
+        )
+    }
+
+    environment {
+
+        // Service Information
+        SERVICE_NAME = "workspace-service"
+
+        // DockerHub Repository
+        IMAGE_NAME = "satyamgrao007/lovable-workspace-service"
+
+        // Kubernetes Namespace
+        NAMESPACE = "lovable-core"
+
+        // SonarQube Installation Name
+        SONARQUBE_SERVER = "SonarQube"
+    }
+
+    stages {
+
+        /**************************************************************
+         * Checkout Source
+         **************************************************************/
+        stage('Checkout Source') {
+            steps {
+                checkout scm
+            }
+        }
+
+        /**************************************************************
+         * Prepare Maven Wrapper
+         **************************************************************/
+        stage('Prepare Maven Wrapper') {
+            steps {
+                sh '''
+                    chmod +x common-lib/mvnw
+                    chmod +x workspace-service/mvnw
+                '''
+            }
+        }
+
+        /**************************************************************
+         * Verify Build Environment
+         **************************************************************/
+        stage('Verify Environment') {
+            steps {
+                sh '''
+                    echo "========== JAVA =========="
+                    java -version
+
+                    echo ""
+                    echo "========== MAVEN =========="
+                    ./workspace-service/mvnw -version
+
+                    echo ""
+                    echo "========== GIT =========="
+                    git --version
+
+                    echo ""
+                    echo "========== DOCKER =========="
+                    docker --version
+
+                    echo ""
+                    echo "========== TRIVY =========="
+                    trivy --version
+
+                    echo ""
+                    echo "========== DOCKER CONTAINERS =========="
+                    docker ps
+                '''
+            }
+        }
+
+        /**************************************************************
+         * Build Common Library
+         **************************************************************/
+        stage('Build Common Library') {
+            steps {
+                dir('common-lib') {
+                    sh '''
+                        ./mvnw clean install -DskipTests
+                    '''
+                }
+            }
+        }
+
+        /**************************************************************
+         * Build Service
+         **************************************************************/
+        stage('Build Service') {
+            steps {
+                dir('workspace-service') {
+                    sh '''
+                        ./mvnw clean verify -DskipTests
+                    '''
+                }
+            }
+        }
+
+        /**************************************************************
+         * SonarQube Analysis
+         **************************************************************/
+        stage('SonarQube Analysis') {
+            steps {
+                dir('workspace-service') {
+
+                    withSonarQubeEnv("${SONARQUBE_SERVER}") {
+
+                        sh '''
+                            ./mvnw sonar:sonar \
+                              -Dsonar.projectKey=workspace-service \
+                              -Dsonar.projectName=workspace-service
+                        '''
+
+                    }
+                }
+            }
+        }
+
+        /**************************************************************
+         * Quality Gate
+         **************************************************************/
+        stage('Quality Gate') {
+            steps {
+
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+
+            }
+        }
+
+        /**************************************************************
+         * Trivy Filesystem Scan
+         **************************************************************/
+//         stage('Trivy Filesystem Scan') {
+//
+//             steps {
+//
+//                 dir('workspace-service') {
+//
+//                     sh '''
+//                         echo "======================================"
+//                         echo "Scanning Source Code"
+//                         echo "======================================"
+//
+//                         trivy fs \
+//                             --scanners vuln,misconfig,secret \
+//                             --severity HIGH,CRITICAL \
+//                             --exit-code 1 \
+//                             .
+//
+//                         echo ""
+//                         echo "Filesystem Scan Passed"
+//                     '''
+//
+//                 }
+//
+//             }
+//
+//         }
+
+         stage('Trivy Filesystem Scan') {
+
+             steps {
+
+                 dir('workspace-service') {
+
+                     sh '''
+                         echo "======================================"
+                         echo "Scanning Source Code"
+                         echo "======================================"
+
+                         trivy fs \
+                             --scanners vuln,misconfig,secret \
+                             --severity HIGH,CRITICAL \
+                             --exit-code 0 \
+                             .
+
+                         echo ""
+                         echo "Filesystem Scan Completed"
+                     '''
+
+                 }
+
+             }
+
+         }
+
+                /**************************************************************
+                 * Build Docker Image (Local)
+                 **************************************************************/
+                stage('Build Docker Image') {
+
+                    steps {
+
+                        dir('workspace-service') {
+
+                            sh '''
+                                echo "======================================"
+                                echo "Building Docker Image"
+                                echo "======================================"
+
+                                ./mvnw compile jib:dockerBuild \
+                                  -DskipTests \
+                                  -Djib.to.image=${IMAGE_NAME}:${BUILD_NUMBER}
+
+                                docker images | grep ${SERVICE_NAME}
+
+                                echo ""
+                                echo "Docker Image Built Successfully"
+                            '''
+
+                        }
+
+                    }
+
+                }
+
+                /**************************************************************
+                 * Trivy Docker Image Scan
+                 **************************************************************/
+//                 stage('Trivy Docker Image Scan') {
+//
+//                     steps {
+//
+//                         sh '''
+//                             echo "======================================"
+//                             echo "Scanning Docker Image"
+//                             echo "======================================"
+//
+//                             trivy image \
+//                                 --severity HIGH,CRITICAL \
+//                                 --exit-code 1 \
+//                                 ${IMAGE_NAME}:${BUILD_NUMBER}
+//
+//                             echo ""
+//                             echo "Docker Image Scan Passed"
+//                         '''
+//
+//                     }
+//
+//                 }
+
+               stage('Trivy Docker Image Scan') {
+
+                   steps {
+
+                       sh '''
+                           echo "======================================"
+                           echo "Scanning Docker Image"
+                           echo "======================================"
+
+                           trivy image \
+                               --timeout 15m \
+                               --scanners vuln \
+                               --severity HIGH,CRITICAL \
+                               --format json \
+                               --output trivy-image-report.json \
+                               --exit-code 0 \
+                               ${IMAGE_NAME}:${BUILD_NUMBER}
+
+                           echo ""
+                           echo "Docker Image Scan Completed"
+                       '''
+
+                   }
+
+                   post {
+                       always {
+                           archiveArtifacts artifacts: 'trivy-image-report.json'
+                       }
+                   }
+
+               }
+
+                /**************************************************************
+                 * Docker Login
+                 **************************************************************/
+                stage('Docker Login') {
+
+                    steps {
+
+                        withCredentials([
+                            usernamePassword(
+                                credentialsId: 'dockerhub-creds',
+                                usernameVariable: 'DOCKER_USERNAME',
+                                passwordVariable: 'DOCKER_PASSWORD'
+                            )
+                        ]) {
+
+                            sh '''
+                                echo "$DOCKER_PASSWORD" | docker login \
+                                    -u "$DOCKER_USERNAME" \
+                                    --password-stdin
+                            '''
+
+                        }
+
+                    }
+
+                }
+
+                /**************************************************************
+                 * Push Docker Image
+                 **************************************************************/
+               stage('Push Docker Image') {
+
+                   steps {
+
+                       retry(3) {
+
+                           sh '''
+                               echo "======================================"
+                               echo "Pushing Docker Image"
+                               echo "======================================"
+
+                               echo ""
+                               echo "Docker Version"
+                               docker version
+
+                               echo ""
+                               echo "Docker Info"
+                               docker info
+
+                               echo ""
+                               echo "Local Images"
+                               docker images | grep lovable-workspace-service || true
+
+                               docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+
+                               docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+
+                               docker push ${IMAGE_NAME}:latest
+
+                               echo ""
+                               echo "Docker Image Successfully Pushed"
+                           '''
+                       }
+                   }
+               }
+                /**************************************************************
+                 * Deploy to Kubernetes
+                 **************************************************************/
+
+                /*
+                stage('Deploy to Kubernetes') {
+
+                    steps {
+
+                        sh """
+
+                            kubectl set image deployment/${SERVICE_NAME} \
+                                ${SERVICE_NAME}=${IMAGE_NAME}:${BUILD_NUMBER} \
+                                -n ${NAMESPACE}
+
+                            kubectl rollout status deployment/${SERVICE_NAME} \
+                                -n ${NAMESPACE}
+
+                        """
+
+                    }
+
+                }
+                */
+
+            }
+
+            post {
+
+                success {
+
+                    echo """
+
+        ==========================================================
+
+                        BUILD SUCCESSFUL
+
+        ==========================================================
+
+        Service : ${SERVICE_NAME}
+
+        Image   : ${IMAGE_NAME}:${BUILD_NUMBER}
+
+        ==========================================================
+
+        """
+
+                }
+
+                failure {
+
+                    echo """
+
+        ==========================================================
+
+                         BUILD FAILED
+
+        ==========================================================
+
+        Please check the Jenkins console output.
+
+        ==========================================================
+
+        """
+
+                }
+
+                always {
+
+                    sh '''
+                        docker logout || true
+                    '''
+
+                    deleteDir()
+
+                }
+
+            }
+
+        }
+

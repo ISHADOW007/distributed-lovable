@@ -188,7 +188,6 @@ pipeline {
 
         /**************************************************************
          * Build Docker Image & Push using Jib
-         **************************************************************/
         stage('Build and Push Image using Jib') {
 
             steps {
@@ -208,6 +207,7 @@ pipeline {
                     dir('account-service') {
 
                         sh '''
+         **************************************************************/
 
                             echo "======================================="
                             echo "Building Docker Image with Jib"

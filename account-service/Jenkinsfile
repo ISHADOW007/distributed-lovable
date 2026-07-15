@@ -26,7 +26,7 @@ pipeline {
         NAMESPACE = "lovable-core"
 
         // SonarQube Installation Name
-        SONARQUBE_SERVER = "sonarqube"
+        SONARQUBE_SERVER = "SonarQube"
     }
 
     stages {

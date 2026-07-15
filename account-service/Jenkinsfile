@@ -317,29 +317,41 @@ pipeline {
                 /**************************************************************
                  * Push Docker Image
                  **************************************************************/
-                stage('Push Docker Image') {
+               stage('Push Docker Image') {
 
-                    steps {
+                   steps {
 
-                        sh '''
-                            echo "======================================"
-                            echo "Pushing Docker Image"
-                            echo "======================================"
+                       retry(3) {
 
-                            docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                           sh '''
+                               echo "======================================"
+                               echo "Pushing Docker Image"
+                               echo "======================================"
 
-                            docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                               echo ""
+                               echo "Docker Version"
+                               docker version
 
-                            docker push ${IMAGE_NAME}:latest
+                               echo ""
+                               echo "Docker Info"
+                               docker info
 
-                            echo ""
-                            echo "Docker Image Successfully Pushed"
-                        '''
+                               echo ""
+                               echo "Local Images"
+                               docker images | grep lovable-account-service || true
 
-                    }
+                               docker push ${IMAGE_NAME}:${BUILD_NUMBER}
 
-                }
+                               docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
 
+                               docker push ${IMAGE_NAME}:latest
+
+                               echo ""
+                               echo "Docker Image Successfully Pushed"
+                           '''
+                       }
+                   }
+               }
                 /**************************************************************
                  * Deploy to Kubernetes
                  **************************************************************/

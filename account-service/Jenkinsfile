@@ -131,7 +131,7 @@ pipeline {
                     --format XML
                     --out dependency-check-report
                 ''',
-                odcInstallation: 'DependencyCheck'
+                odcInstallation: 'DEPENDENCY_CHECK'
 
             }
 

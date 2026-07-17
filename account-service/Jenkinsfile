@@ -121,6 +121,12 @@ pipeline {
             }
         }
 
+        stage('Prepare Dependency Check') {
+            steps {
+                sh 'mkdir -p dependency-check-report'
+            }
+        }
+
         stage('OWASP Dependency Check') {
 
             steps {
@@ -131,7 +137,7 @@ pipeline {
                        --scan account-service \
                        --format XML \
                        --format HTML \
-                       --out dependency-check-report
+                       --out .
                    '''
                )
 
@@ -142,7 +148,7 @@ pipeline {
                 always {
 
                     dependencyCheckPublisher(
-                        pattern: 'dependency-check-report/dependency-check-report.xml'
+                       pattern: '**/dependency-check-report.xml'
                     )
 
                     archiveArtifacts artifacts: 'dependency-check-report/**'

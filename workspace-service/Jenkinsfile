@@ -27,6 +27,17 @@ pipeline {
 
         // SonarQube Installation Name
         SONARQUBE_SERVER = "SonarQube"
+
+
+       GITOPS_CREDENTIALS = "github-creds"
+
+        GITOPS_BRANCH = "main"
+
+         DEPENDENCY_CHECK = "Dependency-Check"
+    }
+
+    tools {
+        jdk 'jdk17'
     }
 
     stages {
@@ -109,7 +120,44 @@ pipeline {
                 }
             }
         }
+//
+//         stage('Prepare Dependency Check') {
+//             steps {
+//                 sh 'mkdir -p dependency-check-report'
+//             }
+//         }
 
+//         stage('OWASP Dependency Check') {
+//
+//             steps {
+//
+//                dependencyCheck(
+//                    odcInstallation: "${DEPENDENCY_CHECK}",
+//                    additionalArguments: '''
+//                        --scan workspace-service \
+//                        --format XML \
+//                        --format HTML \
+//                        --out .
+//                    '''
+//                )
+//
+//             }
+//
+//             post {
+//
+//                 always {
+//
+//                     dependencyCheckPublisher(
+//                        pattern: '**/dependency-check-report.xml'
+//                     )
+//
+//                     archiveArtifacts artifacts: 'dependency-check-report/**'
+//
+//                 }
+//
+//             }
+//
+//         }
         /**************************************************************
          * SonarQube Analysis
          **************************************************************/
@@ -142,6 +190,9 @@ pipeline {
 
             }
         }
+
+
+
 
         /**************************************************************
          * Trivy Filesystem Scan
@@ -352,6 +403,63 @@ pipeline {
                        }
                    }
                }
+
+
+               /**************************************************************
+                * Update GitOps Repository
+                **************************************************************/
+               stage('Update GitOps Repository') {
+
+                   steps {
+
+                       withCredentials([
+                           usernamePassword(
+                               credentialsId: "${GITOPS_CREDENTIALS}",
+                               usernameVariable: 'GITHUB_USERNAME',
+                               passwordVariable: 'GITHUB_TOKEN'
+                           )
+                       ]) {
+
+                           sh '''
+                               echo "======================================"
+                               echo "Updating GitOps Repository"
+                               echo "======================================"
+
+                               rm -rf gitops
+
+                               git clone https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/ISHADOW007/lovable-gitops.git gitops
+
+                               cd gitops
+
+                               git checkout ${GITOPS_BRANCH}
+
+                               echo ""
+                               echo "Updating image tag..."
+
+                               sed -i "s/newTag:.*/newTag: \\"${BUILD_NUMBER}\\"/" backend/workspace-service/kustomization.yaml
+
+                               echo ""
+                               echo "Updated kustomization.yaml"
+
+                               cat backend/workspace-service/kustomization.yaml
+
+                               git config user.email "jenkins@lovable.com"
+                               git config user.name "Jenkins"
+
+                               git add .
+
+                               git diff --cached --quiet || git commit -m "Update workspace-service image to ${BUILD_NUMBER}"
+
+                               git push origin ${GITOPS_BRANCH}
+
+                               echo ""
+                               echo "GitOps Repository Updated Successfully"
+
+                           '''
+                       }
+                   }
+               }
+
                 /**************************************************************
                  * Deploy to Kubernetes
                  **************************************************************/

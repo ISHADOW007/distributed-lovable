@@ -27,6 +27,11 @@ pipeline {
 
         // SonarQube Installation Name
         SONARQUBE_SERVER = "SonarQube"
+
+
+       GITOPS_CREDENTIALS = "github-creds"
+
+        GITOPS_BRANCH = "main"
     }
 
     stages {

@@ -436,7 +436,7 @@ pipeline {
                                echo ""
                                echo "Updating image tag..."
 
-                               sed -i "s/newTag:.*/newTag: \\"${BUILD_NUMBER}\\"/" backend/aapi-gateway/kustomization.yaml
+                               sed -i "s/newTag:.*/newTag: \\"${BUILD_NUMBER}\\"/" backend/api-gateway/kustomization.yaml
 
                                echo ""
                                echo "Updated kustomization.yaml"

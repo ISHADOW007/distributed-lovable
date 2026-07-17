@@ -33,7 +33,7 @@ pipeline {
 
         GITOPS_BRANCH = "main"
 
-         DEPENDENCY_CHECK = "DependencyCheck"
+         DEPENDENCY_CHECK = "Dependency-Check"
     }
 
     tools {

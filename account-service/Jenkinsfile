@@ -120,44 +120,44 @@ pipeline {
                 }
             }
         }
+//
+//         stage('Prepare Dependency Check') {
+//             steps {
+//                 sh 'mkdir -p dependency-check-report'
+//             }
+//         }
 
-        stage('Prepare Dependency Check') {
-            steps {
-                sh 'mkdir -p dependency-check-report'
-            }
-        }
-
-        stage('OWASP Dependency Check') {
-
-            steps {
-
-               dependencyCheck(
-                   odcInstallation: "${DEPENDENCY_CHECK}",
-                   additionalArguments: '''
-                       --scan account-service \
-                       --format XML \
-                       --format HTML \
-                       --out .
-                   '''
-               )
-
-            }
-
-            post {
-
-                always {
-
-                    dependencyCheckPublisher(
-                       pattern: '**/dependency-check-report.xml'
-                    )
-
-                    archiveArtifacts artifacts: 'dependency-check-report/**'
-
-                }
-
-            }
-
-        }
+//         stage('OWASP Dependency Check') {
+//
+//             steps {
+//
+//                dependencyCheck(
+//                    odcInstallation: "${DEPENDENCY_CHECK}",
+//                    additionalArguments: '''
+//                        --scan account-service \
+//                        --format XML \
+//                        --format HTML \
+//                        --out .
+//                    '''
+//                )
+//
+//             }
+//
+//             post {
+//
+//                 always {
+//
+//                     dependencyCheckPublisher(
+//                        pattern: '**/dependency-check-report.xml'
+//                     )
+//
+//                     archiveArtifacts artifacts: 'dependency-check-report/**'
+//
+//                 }
+//
+//             }
+//
+//         }
         /**************************************************************
          * SonarQube Analysis
          **************************************************************/

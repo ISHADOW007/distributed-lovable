@@ -32,6 +32,12 @@ pipeline {
        GITOPS_CREDENTIALS = "github-creds"
 
         GITOPS_BRANCH = "main"
+
+         DEPENDENCY_CHECK = "DependencyCheck"
+    }
+
+    tools {
+        jdk 'jdk17'
     }
 
     stages {
@@ -115,6 +121,35 @@ pipeline {
             }
         }
 
+        stage('OWASP Dependency Check') {
+
+            steps {
+
+                dependencyCheck additionalArguments: '''
+                    --scan account-service
+                    --format HTML
+                    --format XML
+                    --out dependency-check-report
+                ''',
+                odcInstallation: 'DependencyCheck'
+
+            }
+
+            post {
+
+                always {
+
+                    dependencyCheckPublisher(
+                        pattern: 'dependency-check-report/dependency-check-report.xml'
+                    )
+
+                    archiveArtifacts artifacts: 'dependency-check-report/**'
+
+                }
+
+            }
+
+        }
         /**************************************************************
          * SonarQube Analysis
          **************************************************************/
@@ -147,6 +182,9 @@ pipeline {
 
             }
         }
+
+
+
 
         /**************************************************************
          * Trivy Filesystem Scan

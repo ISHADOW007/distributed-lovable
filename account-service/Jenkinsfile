@@ -125,13 +125,15 @@ pipeline {
 
             steps {
 
-                dependencyCheck additionalArguments: '''
-                    --scan account-service
-                    --format HTML
-                    --format XML
-                    --out dependency-check-report
-                ''',
-                odcInstallation: 'DEPENDENCY_CHECK'
+               dependencyCheck(
+                   odcInstallation: "${DEPENDENCY_CHECK}",
+                   additionalArguments: '''
+                       --scan account-service \
+                       --format XML \
+                       --format HTML \
+                       --out dependency-check-report
+                   '''
+               )
 
             }
 

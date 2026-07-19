@@ -370,40 +370,39 @@ pipeline {
                  **************************************************************/
                stage('Push Docker Image') {
 
-                   steps {
+                                  steps {
 
-                       retry(3) {
+                                      retry(3) {
 
-                           sh '''
-                               echo "======================================"
-                               echo "Pushing Docker Image"
-                               echo "======================================"
+                                          sh '''
+                                              echo "======================================"
+                                              echo "Pushing Docker Image"
+                                              echo "======================================"
 
-                               echo ""
-                               echo "Docker Version"
-                               docker version
+                                              echo ""
+                                              echo "Docker Version"
+                                              docker version
 
-                               echo ""
-                               echo "Docker Info"
-                               docker info
+                                              echo ""
+                                              echo "Docker Info"
+                                              docker info
 
-                               echo ""
-                               echo "Local Images"
-                               docker images | grep lovable-workspace-service || true
+                                              echo ""
+                                              echo "Local Images"
+                                              docker images | grep lovable-account-service || true
 
-                               docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                                              docker push ${IMAGE_NAME}:${BUILD_NUMBER}
 
-                               docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                                              docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
 
-                               docker push ${IMAGE_NAME}:latest
+                                              docker push ${IMAGE_NAME}:latest
 
-                               echo ""
-                               echo "Docker Image Successfully Pushed"
-                           '''
-                       }
-                   }
-               }
-
+                                              echo ""
+                                              echo "Docker Image Successfully Pushed"
+                                          '''
+                                      }
+                                  }
+                              }
 
                /**************************************************************
                 * Update GitOps Repository

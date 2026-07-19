@@ -11,6 +11,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -30,56 +31,119 @@ public class GatewayJwtAuthFilter implements GlobalFilter, Ordered {
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());
 
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 
         ServerHttpRequest request = exchange.getRequest();
-        String path = request.getURI().getPath();
-        log.info("Method: {}", request.getMethod());
-        log.info("Path: {}", request.getURI().getPath());
 
-        boolean isPublic = securityProperties.getPublicRoutes().stream()
+        String path = request.getURI().getPath();
+
+        log.info("Method: {}", request.getMethod());
+        log.info("Path: {}", path);
+
+
+        // 1. Allow CORS preflight requests
+        if (request.getMethod() == HttpMethod.OPTIONS) {
+            log.info("OPTIONS request allowed: {}", path);
+            return chain.filter(exchange);
+        }
+
+
+        // 2. Check public routes
+        boolean isPublic = securityProperties.getPublicRoutes()
+                .stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
+
 
         if (isPublic) {
             log.info("Public route, continue: {}", path);
             return chain.filter(exchange);
         }
 
-        String authHeader = request.getHeaders().getFirst("Authorization");
+
+        // 3. Validate JWT for protected routes
+        String authHeader = request.getHeaders()
+                .getFirst("Authorization");
+
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+
             log.error("Missing or invalid Authorization header for path: {}", path);
-            return sendErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
+
+            return sendErrorResponse(
+                    exchange,
+                    HttpStatus.UNAUTHORIZED,
+                    "Missing or invalid Authorization header"
+            );
         }
+
 
         String token = authHeader.substring(7);
 
+
         try {
+
             jwtGatewayService.validateToken(token);
+
             log.info("JWT token valid for path: {}", path);
+
+
         } catch (Exception e) {
+
             log.error("JWT Validation failed at Gateway: {}", e.getMessage());
-            return sendErrorResponse(exchange, HttpStatus.UNAUTHORIZED, e.getMessage());
+
+            return sendErrorResponse(
+                    exchange,
+                    HttpStatus.UNAUTHORIZED,
+                    e.getMessage()
+            );
         }
+
 
         return chain.filter(exchange);
     }
 
-    private Mono<Void> sendErrorResponse(ServerWebExchange exchange, HttpStatus status, String message) {
+
+    private Mono<Void> sendErrorResponse(
+            ServerWebExchange exchange,
+            HttpStatus status,
+            String message) {
+
+
         exchange.getResponse().setStatusCode(status);
-        exchange.getResponse().getHeaders().add("Content-Type", "application/json");
+
+        exchange.getResponse()
+                .getHeaders()
+                .add("Content-Type", "application/json");
+
 
         ApiError apiError = new ApiError(status, message);
 
+
         try {
+
             byte[] bytes = objectMapper.writeValueAsBytes(apiError);
-            DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(bytes);
-            return exchange.getResponse().writeWith(Mono.just(buffer));
+
+            DataBuffer buffer =
+                    exchange.getResponse()
+                            .bufferFactory()
+                            .wrap(bytes);
+
+
+            return exchange.getResponse()
+                    .writeWith(Mono.just(buffer));
+
+
         } catch (Exception e) {
+
             log.error("Error serializing gateway error response", e);
-            return exchange.getResponse().setComplete();
+
+            return exchange.getResponse()
+                    .setComplete();
         }
     }
+
 
     @Override
     public int getOrder() {

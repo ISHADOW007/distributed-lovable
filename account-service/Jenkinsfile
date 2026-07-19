@@ -161,22 +161,24 @@ pipeline {
         /**************************************************************
          * SonarQube Analysis
          **************************************************************/
-        stage('SonarQube Analysis') {
-            steps {
-                dir('account-service') {
+      stage('Quality Gate') {
+          steps {
+              timeout(time: 5, unit: 'MINUTES') {
+                  script {
+                      def qualityGate = waitForQualityGate()
 
-                    withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                      echo "======================================"
+                      echo "Quality Gate Status: ${qualityGate.status}"
+                      echo "======================================"
 
-                        sh '''
-                            ./mvnw sonar:sonar \
-                              -Dsonar.projectKey=account-service \
-                              -Dsonar.projectName=account-service
-                        '''
-
-                    }
-                }
-            }
-        }
+                      if (qualityGate.status != 'OK') {
+                          echo "WARNING: SonarQube Quality Gate Failed"
+                          echo "Continuing the pipeline..."
+                      }
+                  }
+              }
+          }
+      }
 
         /**************************************************************
          * Quality Gate

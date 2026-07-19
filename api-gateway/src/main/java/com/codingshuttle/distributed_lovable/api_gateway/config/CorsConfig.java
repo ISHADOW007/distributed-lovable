@@ -1,5 +1,6 @@
 package com.codingshuttle.distributed_lovable.api_gateway.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -8,13 +9,15 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
-//"https://lovable.snapcart.dev"
+@Slf4j
 @Configuration
 public class CorsConfig {
 
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
+
+        
         corsConfig.setAllowedOrigins(Arrays.asList(
 
                 "http://localhost:5173",

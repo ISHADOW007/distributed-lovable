@@ -17,9 +17,9 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
-        
-        corsConfig.setAllowedOrigins(Arrays.asList(
 
+        corsConfig.setAllowedOrigins(Arrays.asList(
+                "http://lovable.localdev.me",
                 "http://localhost:5173",
                 "http://localhost:3000"
 

@@ -8,7 +8,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
-
+//"https://lovable.snapcart.dev"
 @Configuration
 public class CorsConfig {
 
@@ -17,9 +17,10 @@ public class CorsConfig {
         CorsConfiguration corsConfig = new CorsConfiguration();
         corsConfig.setAllowedOrigins(Arrays.asList(
 
-                "https://lovable.snapcart.dev",
                 "http://localhost:5173",
                 "http://localhost:3000"
+
+
 
         ));
         corsConfig.setMaxAge(3600L);

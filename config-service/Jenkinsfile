@@ -258,7 +258,7 @@ pipeline {
 
                     steps {
 
-                        dir('aconfig-service') {
+                        dir('config-service') {
 
                             sh '''
                                 echo "======================================"

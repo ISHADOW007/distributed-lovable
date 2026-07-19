@@ -37,16 +37,31 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     @Override
     public SubscriptionResponse getCurrentSubscription() {
+
         Long userId = authUtil.getCurrentUserId();
+        log.info("UserId = {}", userId);
 
-        var currentSubscription = subscriptionRepository.findByUserIdAndStatusIn(userId, Set.of(
-                SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE,
-                SubscriptionStatus.TRIALING
-        )).orElse(
-                new Subscription()
-        );
+        System.out.println("STEP 1");
 
-        return subscriptionMapper.toSubscriptionResponse(currentSubscription);
+        var currentSubscription = subscriptionRepository.findByUserIdAndStatusIn(
+                userId,
+                Set.of(
+                        SubscriptionStatus.ACTIVE,
+                        SubscriptionStatus.PAST_DUE,
+                        SubscriptionStatus.TRIALING
+                )
+        ).orElse(new Subscription());
+
+        System.out.println("STEP 2");
+        System.out.println(currentSubscription);
+
+        SubscriptionResponse response =
+                subscriptionMapper.toSubscriptionResponse(currentSubscription);
+
+        System.out.println("STEP 3");
+        System.out.println(response);
+
+        return response;
     }
 
     @Override

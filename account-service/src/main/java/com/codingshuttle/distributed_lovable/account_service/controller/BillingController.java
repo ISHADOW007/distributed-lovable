@@ -32,9 +32,22 @@ public class BillingController {
 
     @GetMapping("/api/me/subscription")
     public ResponseEntity<SubscriptionResponse> getMySubscription() {
-        return ResponseEntity.ok(subscriptionService.getCurrentSubscription());
-    }
 
+        // Check whether the request reaches the controller
+        System.out.println("========== BillingController: getMySubscription() called ==========");
+
+        SubscriptionResponse response = subscriptionService.getCurrentSubscription();
+
+        // Print the response object
+        System.out.println("Subscription Response: " + response);
+
+        // If response is null, you'll know immediately
+        if (response == null) {
+            System.out.println("SubscriptionResponse is NULL");
+        }
+
+        return ResponseEntity.ok(response);
+    }
     @PostMapping("/api/payments/checkout")
     public ResponseEntity<CheckoutResponse> createCheckoutResponse(
             @RequestBody CheckoutRequest request

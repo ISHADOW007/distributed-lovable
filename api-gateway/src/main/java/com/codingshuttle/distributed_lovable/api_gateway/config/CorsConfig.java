@@ -18,8 +18,9 @@ public class CorsConfig {
         corsConfig.setAllowedOrigins(Arrays.asList(
 
                 "https://lovable.snapcart.dev",
-                "http://localhost:5173"
-//                
+                "http://localhost:5173",
+                "http://localhost:3000"
+
         ));
         corsConfig.setMaxAge(3600L);
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
